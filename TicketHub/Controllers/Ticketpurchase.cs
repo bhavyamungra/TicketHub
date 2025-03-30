@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Azure.Storage.Queues;
 using System.Text.Json;
+using System.Net.Sockets;
 
 namespace TicketHub
 {
@@ -18,7 +19,7 @@ namespace TicketHub
         {
             _configuration = configuration;
         }
-
+        private readonly string _queueName = "ticket-queue";
         // The [HttpPost] attribute specifies that this method handles POST requests.
         // It receives a TicketData object from the request body.
         [HttpPost]
@@ -43,7 +44,7 @@ namespace TicketHub
             {
                 // Create a QueueClient that interacts with the Azure Storage Queue.
                 // "ticket-queue" is the name of the Azure Queue used to store the ticket purchase messages.
-                var queueClient = new QueueClient(storageConnection, "ticket-queue");
+                var queueClient = new QueueClient(storageConnection, "_queueName");
 
                 // Ensure the queue exists. If not, it will be created.
                 await queueClient.CreateIfNotExistsAsync();
