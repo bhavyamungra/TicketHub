@@ -44,7 +44,7 @@ namespace TicketHub
             {
                 // Create a QueueClient that interacts with the Azure Storage Queue.
                 // "ticket-queue" is the name of the Azure Queue used to store the ticket purchase messages.
-                var queueClient = new QueueClient(storageConnection, "_queueName");
+                var queueClient = new QueueClient(storageConnection, _queueName);
 
                 // Ensure the queue exists. If not, it will be created.
                 await queueClient.CreateIfNotExistsAsync();
