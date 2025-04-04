@@ -34,17 +34,17 @@ namespace TicketHub.Controllers
                 return BadRequest(ModelState);
 
             // Retrieve the Azure Storage connection string from the application's configuration.
-            var storageConnection = _configuration["AzureStorageConnectionString"];
+            string? connectionString = _configuration["AzureStorageConnectionString"];
 
             // If the connection string is empty or not found, return a 500 Internal Server Error.
-            if (string.IsNullOrEmpty(storageConnection))
+            if (string.IsNullOrEmpty(connectionString))
                 return StatusCode(500, "Internal error: Azure storage connection string is not configured.");
 
             try
             {
                 // Create a QueueClient that interacts with the Azure Storage Queue.
                 // "ticket-queue" is the name of the Azure Queue used to store the ticket purchase messages.
-                var queueClient = new QueueClient(storageConnection, _queueName);
+                var queueClient = new QueueClient(connectionString, _queueName);
 
                 // Ensure the queue exists. If not, it will be created.
                 await queueClient.CreateIfNotExistsAsync();
