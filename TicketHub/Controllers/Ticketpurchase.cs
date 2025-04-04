@@ -3,7 +3,7 @@ using Azure.Storage.Queues;
 using System.Text.Json;
 using System.Net.Sockets;
 
-namespace TicketHub
+namespace TicketHub.Controllers
 {
     // The [ApiController] attribute makes this class an API controller.
     // The [Route] attribute specifies the route for the API endpoint. In this case, it's "/api/purchase-ticket".
