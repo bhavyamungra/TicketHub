@@ -1,67 +1,60 @@
 using Microsoft.AspNetCore.Mvc;
 using Azure.Storage.Queues;
 using System.Text.Json;
-using System.Net.Sockets;
+using TicketHub;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
-namespace TicketHub
+namespace TicketHub.Controllers
 {
-    // The [ApiController] attribute makes this class an API controller.
-    // The [Route] attribute specifies the route for the API endpoint. In this case, it's "/api/purchase-ticket".
+    [Route("api/[controller]")]
     [ApiController]
-    [Route("api/purchase-ticket")]
-    public class TicketPurchase : ControllerBase
+    public class TicketsController : ControllerBase
     {
-        // The IConfiguration object is used to read application settings, like the Azure Storage connection string.
+        private readonly ILogger<TicketsController> _logger;
         private readonly IConfiguration _configuration;
 
-        // Constructor: The IConfiguration object is injected into the controller to access app settings.
-        public TicketPurchase(IConfiguration configuration)
+        // Constructor to inject configuration and logger.
+        public TicketsController(IConfiguration configuration, ILogger<TicketsController> logger)
         {
             _configuration = configuration;
+            _logger = logger;
         }
-        private readonly string _queueName = "ticket-queue";
-        // The [HttpPost] attribute specifies that this method handles POST requests.
-        // It receives a TicketData object from the request body.
+
+        private readonly string _queueName = "tickets";
+
+        // POST API method to handle ticket purchase.
         [HttpPost]
-        public async Task<IActionResult> ProcessTicketPurchase([FromBody] TicketData ticketData)
+        public async Task<IActionResult> PurchaseTicket([FromBody] TicketData ticketPurchase)
         {
-            // If the ticketData object is null, return a 400 Bad Request response.
-            if (ticketData == null)
-                return BadRequest("Purchase details are missing or invalid.");
+            if (ticketPurchase == null || !ModelState.IsValid)
+            {
+                return BadRequest(ModelState); // Return if data is invalid
+            }
 
-            // If the data doesn't meet the validation requirements defined in TicketData, return a 400 Bad Request.
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            string? connectionString = _configuration["AzureStorageConnectionString"];
 
-            // Retrieve the Azure Storage connection string from the application's configuration.
-            var storageConnection = _configuration["AzureStorageConnectionString"];
-
-            // If the connection string is empty or not found, return a 500 Internal Server Error.
-            if (string.IsNullOrEmpty(storageConnection))
-                return StatusCode(500, "Internal error: Azure storage connection string is not configured.");
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                return BadRequest("An error was encountered. Connection string is missing.");
+            }
 
             try
             {
-                // Create a QueueClient that interacts with the Azure Storage Queue.
-                // "ticket-queue" is the name of the Azure Queue used to store the ticket purchase messages.
-                var queueClient = new QueueClient(storageConnection, _queueName);
+                var queueClient = new QueueClient(connectionString, _queueName);
 
-                // Ensure the queue exists. If not, it will be created.
-                await queueClient.CreateIfNotExistsAsync();
+                // Serialize TicketData to JSON format
+                string message = JsonSerializer.Serialize(ticketPurchase);
 
-                // Serialize the ticket purchase data into a JSON string to send it to the queue.
-                var purchaseMessage = JsonSerializer.Serialize(ticketData);
+                // Send message to Azure Queue Storage
+                await queueClient.SendMessageAsync(message);
 
-                // Send the serialized data as a message to the Azure Queue.
-                await queueClient.SendMessageAsync(purchaseMessage);
-
-                // If everything goes well, return a 200 OK response with a success message.
-                return Ok("Ticket purchase successfully queued.");
+                return Ok("Ticket purchase processed successfully.");
             }
             catch (Exception ex)
             {
-                // If an error occurs while processing the purchase (e.g., queue failure), return a 500 error with the exception message.
-                return StatusCode(500, $"Error occurred while processing the purchase: {ex.Message}");
+                _logger.LogError(ex, "An error occurred while processing the ticket purchase.");
+                return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
     }
